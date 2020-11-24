@@ -33,6 +33,6 @@ export async function getChildren(id: string) {
 
 export async function listSubjects() {
     return content
-        .find({ type: 'subject' }, { projection: { type: true, name: true } })
+        .find({ type: 'subject' }, { projection: { children: false } })
         .toArray();
 }
