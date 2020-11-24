@@ -11,17 +11,17 @@ const port = 3001;
 app.use(cors());
 
 // /list-subjects
-app.get(apiUrl + '/list-subjects', async (req, res) => {
+app.get(apiUrl + 'list-subjects', async (req, res) => {
     res.json(await db.listSubjects());
 });
 
 // /get-data?id=<id>
-app.get(apiUrl + '/get-data', async (req, res) => {
+app.get(apiUrl + 'get-data', async (req, res) => {
     res.json(await db.getData(new ObjectID(<string>req.query.id)));
 });
 
 // /get-children?id=<id>
-app.get(apiUrl + '/get-children', async (req, res) => {
+app.get(apiUrl + 'get-children', async (req, res) => {
     res.json(await db.getChildren(<string>req.query.id));
 });
 
