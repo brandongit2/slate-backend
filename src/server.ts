@@ -15,6 +15,11 @@ app.get(apiUrl + 'list-subjects', async (req, res) => {
     res.json(await db.listSubjects());
 });
 
+// /get-subject?name=<name>
+app.get(apiUrl + 'get-subject', async (req, res) => {
+    res.json(await db.getSubject(<string>req.query.name));
+});
+
 // /get-data?id=<id>
 app.get(apiUrl + 'get-data', async (req, res) => {
     res.json(await db.getData(new ObjectID(<string>req.query.id)));

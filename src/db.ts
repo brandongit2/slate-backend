@@ -20,6 +20,15 @@ export async function getData(id: ObjectID) {
     )[0];
 }
 
+export async function getSubject(name: string) {
+    let { _id } = (
+        await content
+            .find({ type: 'subject', name }, { projection: { _id: true } })
+            .toArray()
+    )[0];
+    return content.find({ _id }).toArray();
+}
+
 export async function getChildren(id: string) {
     let data = await content
         .find(
