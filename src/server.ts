@@ -1,8 +1,5 @@
 import cors from 'cors';
-import express, { Request, Response } from 'express';
-// @ts-ignore
-import Hyphenopoly from 'hyphenopoly';
-import { ObjectID } from 'mongodb';
+import express from 'express';
 import mongoose from 'mongoose';
 
 import { contentRouter } from './routers/contentRouter';
@@ -22,11 +19,6 @@ mongoose.connect('mongodb://127.0.0.1:27017/slate', {
 const db = mongoose.connection;
 db.on('error', (error) => console.error(error));
 db.on('open', () => console.log('Connected to database.'));
-
-const hyphenate = Hyphenopoly.config({
-    require: ['en-us'],
-    sync: true
-});
 
 // function handleRoute(fn: (req: Request, res: Response) => Promise<any[]>) {
 //     return async (req: Request, res: Response) => {
