@@ -10,23 +10,26 @@ mongo.connect(() => {
 });
 
 export async function getData(id: ObjectID) {
-    return (
-        await content
-            .find(
-                { _id: new ObjectID(id) },
-                { projection: { children: false } }
-            )
-            .toArray()
-    )[0];
+    return await content
+        .find({ _id: new ObjectID(id) }, { projection: { children: false } })
+        .toArray();
 }
 
-export async function getSubject(name: string) {
+export async function getSubject(name: string, children: string) {
     let { _id } = (
         await content
             .find({ type: 'subject', name }, { projection: { _id: true } })
             .toArray()
     )[0];
-    return content.find({ _id }).toArray();
+    let subject = await content.find({ _id }).toArray();
+
+    if (children && children === 'true') {
+        subject[0].children = await getChildren(_id.toHexString());
+    } else {
+        delete subject[0].children;
+    }
+
+    return subject;
 }
 
 export async function getChildren(id: string) {
@@ -37,7 +40,9 @@ export async function getChildren(id: string) {
         )
         .toArray();
 
-    return Promise.all(data[0].children.map((id: ObjectID) => getData(id)));
+    return Promise.all(
+        data[0].children.map(async (id: ObjectID) => (await getData(id))[0])
+    );
 }
 
 export async function listSubjects() {
