@@ -3,6 +3,7 @@ import express from 'express';
 import Hyphenopoly from 'hyphenopoly';
 
 import { BaseContent, Subject, Folder, Article } from '../models/content';
+import { checkJwt } from '../util';
 
 export const contentRouter = express.Router();
 
@@ -143,6 +144,10 @@ contentRouter.get('/subject/:name', async (req, res) => {
         console.error(err);
         res.status(500).end();
     }
+});
+
+contentRouter.get('/test', checkJwt, (req, res) => {
+    res.send('hello');
 });
 
 contentRouter.post('/subject', async (req, res) => {

@@ -20,36 +20,6 @@ const db = mongoose.connection;
 db.on('error', (error) => console.error(error));
 db.on('open', () => console.log('Connected to database.'));
 
-// function handleRoute(fn: (req: Request, res: Response) => Promise<any[]>) {
-//     return async (req: Request, res: Response) => {
-//         try {
-//             var data = await fn(req, res);
-//         } catch (error) {
-//             console.log(error);
-//             res.status(500).end();
-//             return;
-//         }
-
-//         // Provide a list of fields for which their values will by hyphenated.
-//         // ?hyphenateFields=<field>[,<field>...]
-//         if (req.query.hyphenateFields) {
-//             let hyphenateFields = (<string>req.query.hyphenateFields).split(
-//                 ','
-//             );
-
-//             data = data.map((obj) => {
-//                 hyphenateFields.forEach((field) => {
-//                     if (obj[field]) obj[field] = hyphenate(obj[field]);
-//                 });
-
-//                 return obj;
-//             });
-//         }
-
-//         res.json(data);
-//     };
-// }
-
 app.get(`${apiUrl}/`, (req, res) => {
     res.send('Slate API');
 });
