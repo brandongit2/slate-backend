@@ -19,7 +19,7 @@ export const Subject = BaseContent.discriminator(
             name: { type: String, required: true },
             description: { type: String, required: true },
             color: { type: String, required: true },
-            children: [baseContentSchema]
+            children: [String]
         },
         options
     )
@@ -30,7 +30,7 @@ export const Folder = BaseContent.discriminator(
     new Schema(
         {
             name: { type: String, required: true },
-            children: [baseContentSchema]
+            children: [String]
         },
         options
     )
@@ -40,7 +40,7 @@ export const Article = BaseContent.discriminator(
     'article',
     new Schema(
         {
-            title: { type: String, required: true }
+            name: { type: String, required: true }
         },
         options
     )

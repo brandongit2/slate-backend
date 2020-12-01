@@ -32,11 +32,12 @@ contentRouter.use((req, res, next) => {
     });
 
     // @ts-ignore
-    res.hyphenateThenSend = (json: { [key: string]: any }) => {
+    res.hyphenateThenSend = (
+        json: { [key: string]: any } | Array<{ [key: string]: any }>
+    ) => {
         if (req.query.hyphenate) {
             let fieldsToHyphenate = JSON.parse(<string>req.query.hyphenate);
 
-            console.log(fieldsToHyphenate);
             const hyphenateObj = (
                 obj: { [key: string]: any },
                 guide: { [key: string]: any }
@@ -53,9 +54,14 @@ contentRouter.use((req, res, next) => {
                 return obj;
             };
 
-            json = json.map((document: { [key: string]: any }) =>
-                hyphenateObj(document, fieldsToHyphenate)
-            );
+            if (Array.isArray(json)) {
+                json = json.map((document: { [key: string]: any }) =>
+                    hyphenateObj(document, fieldsToHyphenate)
+                );
+            } else {
+                json = hyphenateObj(json, fieldsToHyphenate);
+            }
+
             res.json(json);
         } else {
             res.json(json);
@@ -71,6 +77,85 @@ contentRouter.get('/all-subjects', async (req, res) => {
 
         // @ts-ignore
         res.hyphenateThenSend(subjects);
+    } catch (err) {
+        console.error(err);
+        res.status(500).end();
+    }
+});
+
+contentRouter.get('/data/:uuid', async (req, res) => {
+    try {
+        let uuid = req.params.uuid;
+
+        // @ts-ignore
+        let { type } = await BaseContent.findOne({ uuid }).lean();
+
+        let data;
+        switch (type) {
+            case 'subject': {
+                data = await Subject.findOne({ uuid }).lean();
+                break;
+            }
+            case 'folder': {
+                data = await Folder.findOne({ uuid }).lean();
+                break;
+            }
+            case 'article': {
+                data = await Article.findOne({ uuid }).lean();
+                break;
+            }
+        }
+
+        // @ts-ignore
+        res.hyphenateThenSend(data);
+    } catch (err) {
+        console.error(err);
+        res.status(500).end();
+    }
+});
+
+contentRouter.get('/subject-children/:name', async (req, res) => {
+    try {
+        let name = req.params.name;
+
+        // @ts-ignore
+        let { type } = await BaseContent.findOne({ name }).lean();
+
+        let childrenIds;
+        switch (type) {
+            case 'subject': {
+                // @ts-ignore
+                childrenIds = (await Subject.findOne({ name }).lean()).children;
+                break;
+            }
+            case 'folder': {
+                // @ts-ignore
+                childrenIds = (await Folder.findOne({ name }).lean()).children;
+                break;
+            }
+        }
+
+        let children = await Promise.all(
+            childrenIds.map(async (uuid: string) => {
+                // @ts-ignore
+                let { type } = (await BaseContent.findOne({
+                    uuid
+                }).lean()) as string;
+
+                // Depending on the type, return a document of that type.
+                switch (type) {
+                    case 'folder': {
+                        return await Folder.findOne({ uuid }).lean();
+                    }
+                    case 'article': {
+                        return await Article.findOne({ uuid }).lean();
+                    }
+                }
+            })
+        );
+
+        // @ts-ignore
+        res.hyphenateThenSend(children);
     } catch (err) {
         console.error(err);
         res.status(500).end();
@@ -111,7 +196,7 @@ contentRouter.get('/children/:uuid', async (req, res) => {
                         return await Folder.findOne({ uuid }).lean();
                     }
                     case 'article': {
-                        return await Article.find({ uuid }).lean();
+                        return await Article.findOne({ uuid }).lean();
                     }
                 }
             })
@@ -156,27 +241,71 @@ contentRouter.post('/subject', async (req, res) => {
     }
 });
 
-contentRouter.post('/folder', async (req, res) => {
+contentRouter.post('/:location/folder', async (req, res) => {
     try {
-        const folder = new Folder({
-            uuid: uuidv4(),
+        let childUuid = uuidv4();
+
+        let newFolder = new Folder({
+            uuid: childUuid,
             name: req.body.name
-        });
-        res.status(201).json(await folder.save());
+        }).save();
+        let updateParent = async () => {
+            // @ts-ignore
+            let { type } = await BaseContent.findOne({
+                uuid: req.params.location
+            }).lean();
+
+            if (type === 'subject') {
+                await Subject.updateOne(
+                    { uuid: req.params.location },
+                    { $push: { children: childUuid } }
+                );
+            } else if (type === 'folder') {
+                await Folder.updateOne(
+                    { uuid: req.params.location },
+                    { $push: { children: childUuid } }
+                );
+            }
+        };
+
+        await Promise.all([newFolder, updateParent()]);
+        res.status(201).end();
     } catch (err) {
         console.error(err);
         res.status(400).end();
     }
 });
 
-contentRouter.post('/article', async (req, res) => {
+contentRouter.post('/:location/article', async (req, res) => {
     try {
-        const article = new Article({
-            uuid: uuidv4(),
-            title: req.body.title,
+        let childUuid = uuidv4();
+
+        let newArticle = new Article({
+            uuid: childUuid,
+            name: req.body.name,
             content: req.body.content
-        });
-        res.status(201).json(await article.save());
+        }).save();
+        let updateParent = async () => {
+            // @ts-ignore
+            let { type } = await BaseContent.findOne({
+                uuid: req.params.location
+            }).lean();
+
+            if (type === 'subject') {
+                await Subject.updateOne(
+                    { uuid: req.params.location },
+                    { $push: { children: childUuid } }
+                );
+            } else if (type === 'folder') {
+                await Folder.updateOne(
+                    { uuid: req.params.location },
+                    { $push: { children: childUuid } }
+                );
+            }
+        };
+
+        await Promise.all([newArticle, updateParent()]);
+        res.status(201).end();
     } catch (err) {
         console.error(err);
         res.status(400).end();
