@@ -6,7 +6,10 @@ const options = {
     versionKey: false
 };
 
-const baseContentSchema = new Schema({}, options);
+const baseContentSchema = new Schema(
+    { uuid: { type: String, required: true } },
+    options
+);
 export const BaseContent = mongoose.model('BaseContent', baseContentSchema);
 
 export const Subject = BaseContent.discriminator(

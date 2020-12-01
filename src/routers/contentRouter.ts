@@ -1,6 +1,7 @@
 import express from 'express';
 // @ts-ignore
 import Hyphenopoly from 'hyphenopoly';
+import { v4 as uuidv4 } from 'uuid';
 
 import { BaseContent, Subject, Folder, Article } from '../models/content';
 import { checkJwt } from '../util';
@@ -66,14 +67,7 @@ contentRouter.use((req, res, next) => {
 
 contentRouter.get('/all-subjects', async (req, res) => {
     try {
-        const subjects = (await Subject.find({})).map((parent) => {
-            let parentJson = parent.toJSON();
-            parentJson.children = parentJson.children.map(
-                ({ id }: { _bsonType: 'ObjectID'; id: Buffer }) =>
-                    id.toString('hex')
-            );
-            return parentJson;
-        });
+        const subjects = await Subject.find({}).lean();
 
         // @ts-ignore
         res.hyphenateThenSend(subjects);
@@ -83,45 +77,44 @@ contentRouter.get('/all-subjects', async (req, res) => {
     }
 });
 
-contentRouter.get('/children/:id', async (req, res) => {
+contentRouter.get('/children/:uuid', async (req, res) => {
     try {
-        let _id = req.params.id;
+        let uuid = req.params.uuid;
 
-        // Get the `type` of object `id`.
-        let { type } = (await BaseContent.find({ _id }))[0].toJSON();
+        // @ts-ignore
+        let { type } = await BaseContent.findOne({ uuid }).lean();
 
         let childrenIds;
         switch (type) {
             case 'subject': {
-                childrenIds = (await Subject.find({ _id }))[0].toJSON()
-                    .children;
+                // @ts-ignore
+                childrenIds = (await Subject.findOne({ uuid }).lean()).children;
                 break;
             }
             case 'folder': {
-                childrenIds = (await Folder.find({ _id }))[0].toJSON().children;
+                // @ts-ignore
+                childrenIds = (await Folder.findOne({ uuid }).lean()).children;
                 break;
             }
         }
 
         let children = await Promise.all(
-            childrenIds.map(
-                async ({ id }: { _bsonType: 'ObjectID'; id: Buffer }) => {
-                    let _id = id.toString('hex');
+            childrenIds.map(async (uuid: string) => {
+                // @ts-ignore
+                let { type } = (await BaseContent.findOne({
+                    uuid
+                }).lean()) as string;
 
-                    // This object contains the _id and type of the child.
-                    let base = (await BaseContent.find({ _id }))[0].toJSON();
-
-                    // Depending on the type, return a document of that type.
-                    switch (base.type) {
-                        case 'folder': {
-                            return (await Folder.find({ _id }))[0].toJSON();
-                        }
-                        case 'article': {
-                            return (await Article.find({ _id }))[0].toJSON();
-                        }
+                // Depending on the type, return a document of that type.
+                switch (type) {
+                    case 'folder': {
+                        return await Folder.findOne({ uuid }).lean();
+                    }
+                    case 'article': {
+                        return await Article.find({ uuid }).lean();
                     }
                 }
-            )
+            })
         );
 
         // @ts-ignore
@@ -134,9 +127,7 @@ contentRouter.get('/children/:id', async (req, res) => {
 
 contentRouter.get('/subject/:name', async (req, res) => {
     try {
-        const subject = (
-            await Subject.find({ name: req.params.name })
-        )[0].toJSON();
+        const subject = await Subject.findOne({ name: req.params.name }).lean();
 
         // @ts-ignore
         res.hyphenateThenSend(subject);
@@ -153,6 +144,7 @@ contentRouter.get('/test', checkJwt, (req, res) => {
 contentRouter.post('/subject', async (req, res) => {
     try {
         const subject = new Subject({
+            uuid: uuidv4(),
             name: req.body.name,
             description: req.body.description,
             color: req.body.color || 'ffffff'
@@ -167,6 +159,7 @@ contentRouter.post('/subject', async (req, res) => {
 contentRouter.post('/folder', async (req, res) => {
     try {
         const folder = new Folder({
+            uuid: uuidv4(),
             name: req.body.name
         });
         res.status(201).json(await folder.save());
@@ -179,6 +172,7 @@ contentRouter.post('/folder', async (req, res) => {
 contentRouter.post('/article', async (req, res) => {
     try {
         const article = new Article({
+            uuid: uuidv4(),
             title: req.body.title,
             content: req.body.content
         });
