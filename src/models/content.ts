@@ -40,7 +40,9 @@ export const Article = BaseContent.discriminator(
     'article',
     new Schema(
         {
-            name: { type: String, required: true }
+            name: { type: String, required: true },
+            author: { type: String, required: true },
+            content: { type: String, required: true }
         },
         options
     )
