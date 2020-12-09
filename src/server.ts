@@ -2,15 +2,15 @@ import cors from 'cors';
 import express from 'express';
 import mongoose from 'mongoose';
 
-import { contentRouter } from './routers/contentRouter';
-import { apiUrl } from '../config.json';
+import {contentRouter} from './routers/contentRouter';
+import {apiUrl} from '../config.json';
 
 const app = express();
 const port = 3001;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({extended: true}));
 
 mongoose.connect('mongodb://127.0.0.1:27017/slate', {
     useUnifiedTopology: true,
