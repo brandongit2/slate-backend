@@ -3,7 +3,7 @@ import express from 'express';
 import Hyphenopoly from 'hyphenopoly';
 import { v4 as uuidv4 } from 'uuid';
 
-import { BaseContent, Subject, Folder, Article } from '../models/content';
+import { BaseContent, Subject, Folder, Article, Root } from '../models/content';
 import { checkJwt } from '../util';
 
 export const contentRouter = express.Router();
@@ -71,19 +71,108 @@ contentRouter.use((req, res, next) => {
     next();
 });
 
-contentRouter.get('/all-subjects', async (req, res) => {
+contentRouter.get('/root', async (req, res) => {
     try {
-        const subjects = await Subject.find({}).lean();
+        const root = await Root.findOne({}).lean();
 
         // @ts-ignore
-        res.hyphenateThenSend(subjects);
+        res.hyphenateThenSend(root);
     } catch (err) {
         console.error(err);
         res.status(500).end();
     }
 });
 
-contentRouter.get('/data/:uuid', async (req, res) => {
+contentRouter.get('/root/*', async (req, res) => {
+    try {
+        console.log(req.params);
+        const path = req.params[0].split('/');
+
+        let result: any = await Subject.findOne({ name: path[0] }).lean();
+        for (let folder of path.slice(1)) {
+            let foundChild = false;
+            for (let childUuid of result.children) {
+                result = await BaseContent.findOne({ uuid: childUuid }).lean();
+                if (result.type === 'folder') {
+                    result = await Folder.findOne({ uuid: childUuid }).lean();
+                } else if (result.type === 'article') {
+                    result = await Article.findOne({ uuid: childUuid }).lean();
+                }
+
+                if (result.name === folder) {
+                    foundChild = true;
+                    break;
+                }
+            }
+
+            if (!foundChild) throw new Error('Invalid path.');
+        }
+
+        // @ts-ignore
+        res.hyphenateThenSend(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).end();
+    }
+});
+
+contentRouter.get('/children/:uuid', async (req, res) => {
+    try {
+        let uuid = req.params.uuid;
+
+        // @ts-ignore
+        let { type } = await BaseContent.findOne({ uuid }).lean();
+
+        let childrenIds;
+        switch (type) {
+            case 'root': {
+                // @ts-ignore
+                childrenIds = (await Root.findOne({ uuid }).lean()).children;
+                break;
+            }
+            case 'subject': {
+                // @ts-ignore
+                childrenIds = (await Subject.findOne({ uuid }).lean()).children;
+                break;
+            }
+            case 'folder': {
+                // @ts-ignore
+                childrenIds = (await Folder.findOne({ uuid }).lean()).children;
+                break;
+            }
+        }
+
+        let children = await Promise.all(
+            childrenIds.map(async (uuid: string) => {
+                // @ts-ignore
+                let { type } = (await BaseContent.findOne({
+                    uuid
+                }).lean()) as string;
+
+                // Depending on the type, return a document of that type.
+                switch (type) {
+                    case 'subject': {
+                        return await Subject.findOne({ uuid }).lean();
+                    }
+                    case 'folder': {
+                        return await Folder.findOne({ uuid }).lean();
+                    }
+                    case 'article': {
+                        return await Article.findOne({ uuid }).lean();
+                    }
+                }
+            })
+        );
+
+        // @ts-ignore
+        res.hyphenateThenSend(children);
+    } catch (err) {
+        console.error(err);
+        res.status(500).end();
+    }
+});
+
+contentRouter.get('/:uuid', async (req, res) => {
     try {
         let uuid = req.params.uuid;
 
@@ -114,118 +203,6 @@ contentRouter.get('/data/:uuid', async (req, res) => {
     }
 });
 
-contentRouter.get('/subject-children/:name', async (req, res) => {
-    try {
-        let name = req.params.name;
-
-        // @ts-ignore
-        let { type } = await BaseContent.findOne({ name }).lean();
-
-        let childrenIds;
-        switch (type) {
-            case 'subject': {
-                // @ts-ignore
-                childrenIds = (await Subject.findOne({ name }).lean()).children;
-                break;
-            }
-            case 'folder': {
-                // @ts-ignore
-                childrenIds = (await Folder.findOne({ name }).lean()).children;
-                break;
-            }
-        }
-
-        let children = await Promise.all(
-            childrenIds.map(async (uuid: string) => {
-                // @ts-ignore
-                let { type } = (await BaseContent.findOne({
-                    uuid
-                }).lean()) as string;
-
-                // Depending on the type, return a document of that type.
-                switch (type) {
-                    case 'folder': {
-                        return await Folder.findOne({ uuid }).lean();
-                    }
-                    case 'article': {
-                        return await Article.findOne({ uuid }).lean();
-                    }
-                }
-            })
-        );
-
-        // @ts-ignore
-        res.hyphenateThenSend(children);
-    } catch (err) {
-        console.error(err);
-        res.status(500).end();
-    }
-});
-
-contentRouter.get('/children/:uuid', async (req, res) => {
-    try {
-        let uuid = req.params.uuid;
-
-        // @ts-ignore
-        let { type } = await BaseContent.findOne({ uuid }).lean();
-
-        let childrenIds;
-        switch (type) {
-            case 'subject': {
-                // @ts-ignore
-                childrenIds = (await Subject.findOne({ uuid }).lean()).children;
-                break;
-            }
-            case 'folder': {
-                // @ts-ignore
-                childrenIds = (await Folder.findOne({ uuid }).lean()).children;
-                break;
-            }
-        }
-
-        let children = await Promise.all(
-            childrenIds.map(async (uuid: string) => {
-                // @ts-ignore
-                let { type } = (await BaseContent.findOne({
-                    uuid
-                }).lean()) as string;
-
-                // Depending on the type, return a document of that type.
-                switch (type) {
-                    case 'folder': {
-                        return await Folder.findOne({ uuid }).lean();
-                    }
-                    case 'article': {
-                        return await Article.findOne({ uuid }).lean();
-                    }
-                }
-            })
-        );
-
-        // @ts-ignore
-        res.hyphenateThenSend(children);
-    } catch (err) {
-        console.error(err);
-        res.status(500).end();
-    }
-});
-
-contentRouter.get('/subject/:name', async (req, res) => {
-    try {
-        const subject = await Subject.findOne({ name: req.params.name }).lean();
-
-        // @ts-ignore
-        res.hyphenateThenSend(subject);
-    } catch (err) {
-        console.error(err);
-        res.status(500).end();
-    }
-});
-
-contentRouter.get('/test', checkJwt, (req, res) => {
-    res.send('hello');
-});
-
 contentRouter.post('/subject', async (req, res) => {
     try {
         const subject = new Subject({
@@ -247,7 +224,8 @@ contentRouter.post('/:location/folder', async (req, res) => {
 
         let newFolder = new Folder({
             uuid: childUuid,
-            name: req.body.name
+            name: req.body.name,
+            parent: req.params.location
         }).save();
         let updateParent = async () => {
             // @ts-ignore
@@ -283,7 +261,8 @@ contentRouter.post('/:location/article', async (req, res) => {
         let newArticle = new Article({
             uuid: childUuid,
             name: req.body.name,
-            content: req.body.content
+            content: req.body.content,
+            parent: req.params.location
         }).save();
         let updateParent = async () => {
             // @ts-ignore
